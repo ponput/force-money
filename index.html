@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>FORCE Money</title>
+
+  <!-- ไอคอนและค่า PWA สำหรับ iPhone & Android -->
+  <link rel="apple-touch-icon" sizes="180x180" href="./icon.png?v=76">
+  <link rel="icon" type="image/png" href="./icon.png?v=76">
+  <link rel="manifest" href="./manifest.json?v=76">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="FORCE Money">
+  <meta name="theme-color" content="#090D16">
+
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; font-family: 'Prompt', sans-serif; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background-color: #090D16;
+      color: #F1F5F9;
+      overflow: hidden;
+    }
+    .app-shell {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      background-color: #090D16;
+      padding-top: env(safe-area-inset-top, 0px);
+      padding-bottom: env(safe-area-inset-bottom, 0px);
+    }
+    #appFrame {
+      width: 100%;
+      height: 100%;
+      border: 0;
+      flex: 1;
+      background-color: #090D16;
+      display: none;
+    }
+    /* หน้าจอโหลด Splash Screen */
+    #splashScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 20;
+      background: #090D16;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      padding: 24px;
+      transition: opacity 0.25s ease;
+    }
+    #splashScreen.hidden { display: none; }
+    .splash-logo {
+      width: 84px;
+      height: 84px;
+      border-radius: 22px;
+      object-fit: cover;
+      box-shadow: 0 12px 32px rgba(16, 185, 129, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+    }
+    .splash-title { font-size: 18px; font-weight: 700; color: #FFFFFF; }
+    .splash-sub { font-size: 12px; color: #34D399; }
+    /* หน้าจอตั้งค่าลิงก์ครั้งแรก (เก็บเฉพาะในเครื่อง ไม่เผยแพร่บน GitHub) */
+    #setupScreen {
+      position: fixed;
+      inset: 0;
+      z-index: 30;
+      background: #090D16;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .setup-card {
+      width: 100%;
+      max-width: 390px;
+      background: #111827;
+      border: 1px solid #1E293B;
+      border-radius: 24px;
+      padding: 22px;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    }
+    .setup-input {
+      width: 100%;
+      background: #090D16;
+      border: 1px solid #334155;
+      border-radius: 14px;
+      padding: 12px 14px;
+      color: #FFFFFF;
+      font-size: 14px;
+      margin-top: 14px;
+      outline: none;
+    }
+    .setup-input:focus { border-color: #10B981; }
+    .setup-btn {
+      width: 100%;
+      margin-top: 12px;
+      padding: 12px;
+      border: 0;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #10B981, #14B8A6);
+      color: #020617;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .reset-link {
+      margin-top: 18px;
+      background: transparent;
+      border: 1px solid #334155;
+      color: #94A3B8;
+      border-radius: 12px;
+      padding: 8px 14px;
+      font-size: 12px;
+      cursor: pointer;
+      display: none;
+    }
+    .err-msg { color: #FB7185; font-size: 12px; margin-top: 8px; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <iframe id="appFrame" allow="camera; microphone; clipboard-read; clipboard-write" allowfullscreen></iframe>
+  </div>
+
+  <!-- หน้าโหลดระหว่างเชื่อมต่อ Apps Script -->
+  <div id="splashScreen">
+    <img src="./icon.png" alt="FORCE Money" class="splash-logo">
+    <div class="splash-title">FORCE Money</div>
+    <div id="splashStatus" class="splash-sub">กำลังเชื่อมต่อแอป...</div>
+    <button type="button" id="btnFallbackReset" class="reset-link" onclick="showSetupScreen()">เปลี่ยนลิงก์ Apps Script</button>
+  </div>
+
+  <!-- หน้าวางลิงก์ Apps Script ครั้งแรก (เก็บเฉพาะบนอุปกรณ์นี้) -->
+  <div id="setupScreen">
+    <div class="setup-card">
+      <img src="./icon.png" alt="FORCE Money" class="splash-logo" style="margin: 0 auto 10px;">
+      <div class="splash-title">เชื่อมต่อ FORCE Money</div>
+      <p style="font-size:12px; color:#94A3B8; margin:6px 0 0; line-height:1.5;">
+        วางลิงก์ Web App จาก Google Apps Script (<code style="color:#34D399;">.../exec</code>) ครั้งเดียว ระบบจะจำไว้เฉพาะในเครื่องนี้
+      </p>
+      <input type="url" id="gasUrlInput" class="setup-input" placeholder="https://script.google.com/macros/s/.../exec" autocomplete="off">
+      <div id="setupErr" class="err-msg"></div>
+      <button type="button" class="setup-btn" onclick="saveAndLaunch()">เชื่อมต่อและเปิดแอป</button>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'FORCE_MONEY_GAS_URL_V76';
+    const params = new URLSearchParams(window.location.search);
+
+    function buildWrappedUrl(rawUrl) {
+      const clean = String(rawUrl || '').trim();
+      if (!clean) return '';
+      return clean + (clean.includes('?') ? '&' : '?') + 'wrap=1';
+    }
+
+    function showSetupScreen() {
+      document.getElementById('splashScreen').classList.add('hidden');
+      document.getElementById('appFrame').style.display = 'none';
+      document.getElementById('gasUrlInput').value = localStorage.getItem(STORAGE_KEY) || '';
+      document.getElementById('setupErr').innerText = '';
+      document.getElementById('setupScreen').style.display = 'flex';
+    }
+
+    function launchApp(gasUrl) {
+      const splash = document.getElementById('splashScreen');
+      const frame = document.getElementById('appFrame');
+      const resetBtn = document.getElementById('btnFallbackReset');
+      document.getElementById('setupScreen').style.display = 'none';
+      splash.classList.remove('hidden');
+      splash.style.opacity = '1';
+      resetBtn.style.display = 'none';
+
+      // หากโหลดช้าเกิน 8 วินาที แสดงปุ่มเปลี่ยนลิงก์เผื่อวางลิงก์ผิด
+      const fallbackTimer = setTimeout(() => {
+        resetBtn.style.display = 'inline-block';
+      }, 8000);
+
+      frame.onload = () => {
+        clearTimeout(fallbackTimer);
+        frame.style.display = 'block';
+        splash.style.opacity = '0';
+        setTimeout(() => splash.classList.add('hidden'), 260);
+      };
+      frame.src = buildWrappedUrl(gasUrl);
+    }
+
+    function saveAndLaunch() {
+      const val = (document.getElementById('gasUrlInput').value || '').trim();
+      const errEl = document.getElementById('setupErr');
+      if (!val.startsWith('https://script.google.com/macros/s/')) {
+        errEl.innerText = 'https://script.google.com/macros/s/AKfycbxakvonLOOB0Ps2GhQxNTUeh_GMkszX76fk6laE0CMyV3GrrIhUx0ae0Rf0_Ni1HJQ8/exec';
+        return;
+      }
+      localStorage.setItem(STORAGE_KEY, val);
+      launchApp(val);
+    }
+
+    (function init() {
+      if (params.get('reset') === '1') {
+        showSetupScreen();
+        return;
+      }
+      const savedUrl = localStorage.getItem(STORAGE_KEY);
+      if (savedUrl) {
+        launchApp(savedUrl);
+      } else {
+        showSetupScreen();
+      }
+    })();
+  </script>
+</body>
+</html>
